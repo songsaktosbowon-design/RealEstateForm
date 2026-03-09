@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const PROPERTY_TYPES = ["ที่ดินเปล่า","บ้านเดี่ยว","บ้านแฝด","ทาวน์เฮ้าส์","ตึกแถว/อาคารพาณิชย์","คอนโดมิเนียม","อาคารสำนักงาน","โกดัง/โรงงาน","รีสอร์ท/โรงแรม","อื่นๆ"];
 const TRANSACTION = ["ซื้อ-ขาย","เช่า"];
@@ -17,30 +17,22 @@ const EMPTY = {
   lat:"", lng:"", note:""
 };
 
-function formatPrice(val, unit) {
-  if (!val) return "";
-  const n = parseFloat(val);
-  if (isNaN(n)) return val;
-  if (unit && unit.includes("ล้าน")) return `${n.toLocaleString()} ล้านบาท${unit.includes("ปี")?" /ปี":""}`;
-  return `${n.toLocaleString()} ${unit||"บาท"}`;
-}
-
-function pricePerArea(price, priceUnit, area, areaUnit) {
+function pricePerArea(price: any, priceUnit: any, area: any, areaUnit: any) {
   if (!price || !area) return null;
   let p = parseFloat(price), a = parseFloat(area);
   if (isNaN(p)||isNaN(a)||a===0) return null;
   if (priceUnit?.includes("ล้าน")) p *= 1_000_000;
   // convert to sqm
-  const toSqm = { "ตร.ม.":1, "ตร.วา":4, "ไร่":1600, "งาน":400, "ตร.ฟุต":0.0929 };
+  const toSqm: any = { "ตร.ม.":1, "ตร.วา":4, "ไร่":1600, "งาน":400, "ตร.ฟุต":0.0929 };
   const sqm = a * (toSqm[areaUnit]||1);
   return (p/sqm).toLocaleString("th-TH",{maximumFractionDigits:0}) + " บาท/ตร.ม.";
 }
 
-// Map component using Leaflet via CDN (loaded inline)
-function MapPicker({ lat, lng, onChange }) {
-  const mapRef = useRef(null);
-  const leafletMap = useRef(null);
-  const marker = useRef(null);
+// Map component using Leaflet via CDN
+function MapPicker({ lat, lng, onChange }: any) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const leafletMap = useRef<any>(null);
+  const marker = useRef<any>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -54,11 +46,11 @@ function MapPicker({ lat, lng, onChange }) {
     script.src = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
     script.onload = () => setLoaded(true);
     document.head.appendChild(script);
-  }, []);
+  }, [loaded]);
 
   useEffect(() => {
     if (!loaded || !mapRef.current || leafletMap.current) return;
-    const L = window.L;
+    const L = (window as any).L;
     const initLat = lat && !isNaN(lat) ? parseFloat(lat) : 13.75;
     const initLng = lng && !isNaN(lng) ? parseFloat(lng) : 100.52;
 
@@ -75,36 +67,41 @@ function MapPicker({ lat, lng, onChange }) {
 
     if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
       marker.current = L.marker([parseFloat(lat), parseFloat(lng)], {icon, draggable:true}).addTo(leafletMap.current);
-      marker.current.on("dragend", e => {
+      marker.current.on("dragend", (e: any) => {
         const {lat:la,lng:lo} = e.target.getLatLng();
         onChange(la.toFixed(6), lo.toFixed(6));
       });
     }
 
-    leafletMap.current.on("click", e => {
+    leafletMap.current.on("click", (e: any) => {
       const {lat:la, lng:lo} = e.latlng;
-      if (marker.current) { marker.current.setLatLng([la,lo]); }
-      else { marker.current = L.marker([la,lo],{icon,draggable:true}).addTo(leafletMap.current);
-        marker.current.on("dragend", ev => { const p=ev.target.getLatLng(); onChange(p.lat.toFixed(6),p.lng.toFixed(6)); }); }
+      if (marker.current) { 
+        marker.current.setLatLng([la,lo]); 
+      }
+      else { 
+        marker.current = L.marker([la,lo],{icon,draggable:true}).addTo(leafletMap.current!);
+        marker.current.on("dragend", (ev: any) => { const p=ev.target.getLatLng(); onChange(p.lat.toFixed(6),p.lng.toFixed(6)); }); 
+      }
       onChange(la.toFixed(6), lo.toFixed(6));
     });
-  }, [loaded]);
+  }, [loaded, lat, lng, onChange]);
 
-  // sync marker when lat/lng changes externally
   useEffect(() => {
-    if (!leafletMap.current || !window.L) return;
-    const L = window.L;
+    const L = (window as any).L;
+    if (!leafletMap.current || !L) return;
     if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
-      const pos = [parseFloat(lat), parseFloat(lng)];
-      if (marker.current) { marker.current.setLatLng(pos); }
+      const pos: [number, number] = [parseFloat(lat), parseFloat(lng)];
+      if (marker.current) { 
+        marker.current.setLatLng(pos); 
+      }
       else {
         const icon = L.divIcon({ className:"", html:`<div style="width:24px;height:24px;background:#b45309;border:3px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 8px #0006"></div>`, iconSize:[24,24], iconAnchor:[12,24] });
         marker.current = L.marker(pos,{icon,draggable:true}).addTo(leafletMap.current);
-        marker.current.on("dragend", e => { const p=e.target.getLatLng(); onChange(p.lat.toFixed(6),p.lng.toFixed(6)); });
+        marker.current.on("dragend", (e: any) => { const p=e.target.getLatLng(); onChange(p.lat.toFixed(6),p.lng.toFixed(6)); });
       }
       leafletMap.current.setView(pos, leafletMap.current.getZoom());
     }
-  }, [lat, lng]);
+  }, [lat, lng, onChange]);
 
   return (
     <div style={{position:"relative"}}>
@@ -117,7 +114,7 @@ function MapPicker({ lat, lng, onChange }) {
   );
 }
 
-function SelectField({ label, value, onChange, options, placeholder="— เลือก —", required=false }) {
+function SelectField({ label, value, onChange, options, placeholder="— เลือก —", required=false }: any) {
   return (
     <div style={{display:"flex",flexDirection:"column",gap:6}}>
       <label style={{fontSize:12,fontWeight:600,color:"#7a5c3a",letterSpacing:"0.05em",textTransform:"uppercase"}}>{label}{required&&<span style={{color:"#c0392b",marginLeft:3}}>*</span>}</label>
@@ -129,13 +126,13 @@ function SelectField({ label, value, onChange, options, placeholder="— เล�
           backgroundRepeat:"no-repeat",backgroundPosition:"right 14px center",paddingRight:36,
           transition:"border-color .15s, background .15s"}}>
         <option value="">{placeholder}</option>
-        {options.map(o=><option key={o} value={o}>{o}</option>)}
+        {options.map((o: any)=><option key={o} value={o}>{o}</option>)}
       </select>
     </div>
   );
 }
 
-function InputField({ label, value, onChange, placeholder="", type="text", required=false, suffix="" }) {
+function InputField({ label, value, onChange, placeholder="", type="text", required=false, suffix="" }: any) {
   return (
     <div style={{display:"flex",flexDirection:"column",gap:6}}>
       <label style={{fontSize:12,fontWeight:600,color:"#7a5c3a",letterSpacing:"0.05em",textTransform:"uppercase"}}>{label}{required&&<span style={{color:"#c0392b",marginLeft:3}}>*</span>}</label>
@@ -151,7 +148,7 @@ function InputField({ label, value, onChange, placeholder="", type="text", requi
   );
 }
 
-const SECTION = ({title, icon, children}) => (
+const SECTION = ({title, icon, children}: any) => (
   <div style={{marginBottom:28}}>
     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}>
       <div style={{width:32,height:32,borderRadius:8,background:"linear-gradient(135deg,#c4a882,#b45309)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>{icon}</div>
@@ -163,20 +160,20 @@ const SECTION = ({title, icon, children}) => (
 );
 
 export default function App() {
-  const [form, setForm] = useState({...EMPTY, year: YEARS[0]});
-  const [records, setRecords] = useState([]);
-  const [view, setView] = useState("form"); // form | list
+  const [form, setForm] = useState<any>({...EMPTY, year: YEARS[0]});
+  const [records, setRecords] = useState<any[]>([]);
+  const [view, setView] = useState("form");
   const [saved, setSaved] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [editId, setEditId] = useState(null);
+  const [errors, setErrors] = useState<any>({});
+  const [editId, setEditId] = useState<any>(null);
   const [search, setSearch] = useState("");
 
-  const set = (key) => (val) => setForm(f => ({...f, [key]: val}));
+  const set = (key: string) => (val: any) => setForm((f: any) => ({...f, [key]: val}));
 
   const priceUnits = form.transaction === "เช่า" ? PRICE_UNITS_RENT : PRICE_UNITS_BUY;
 
   const validate = () => {
-    const e = {};
+    const e: any = {};
     if (!form.propertyType) e.propertyType = true;
     if (!form.transaction)  e.transaction = true;
     if (!form.priceValue)   e.priceValue = true;
@@ -198,14 +195,14 @@ export default function App() {
     setTimeout(()=>setSaved(false), 2000);
   };
 
-  const handleEdit = (rec) => {
+  const handleEdit = (rec: any) => {
     setForm({...rec});
     setEditId(rec.id);
     setView("form");
     window.scrollTo({top:0,behavior:"smooth"});
   };
 
-  const handleDelete = (id) => setRecords(r => r.filter(x=>x.id!==id));
+  const handleDelete = (id: any) => setRecords(r => r.filter(x=>x.id!==id));
 
   const filtered = records.filter(r =>
     !search || [r.propertyType,r.province,r.district,r.transaction,r.note].some(v=>v?.includes(search))
@@ -253,7 +250,7 @@ export default function App() {
               <SECTION title="ประเภทและรูปแบบธุรกรรม" icon="🏠">
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
                   <SelectField label="ประเภทอสังหาริมทรัพย์" value={form.propertyType} onChange={set("propertyType")} options={PROPERTY_TYPES} required/>
-                  <SelectField label="รูปแบบธุรกรรม" value={form.transaction} onChange={v=>{set("transaction")(v);set("priceUnit")("");}} options={TRANSACTION} required/>
+                  <SelectField label="รูปแบบธุรกรรม" value={form.transaction} onChange={(v: any)=>{set("transaction")(v);set("priceUnit")("");}} options={TRANSACTION} required/>
                 </div>
               </SECTION>
 
@@ -291,16 +288,16 @@ export default function App() {
 
                 {/* Coordinate inputs */}
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
-                  <InputField label="ละติจูด (Latitude)" value={form.lat} onChange={v=>{set("lat")(v);}} placeholder="เช่น 13.756331" type="number"/>
-                  <InputField label="ลองจิจูด (Longitude)" value={form.lng} onChange={v=>{set("lng")(v);}} placeholder="เช่น 100.501765" type="number"/>
+                  <InputField label="ละติจูด (Latitude)" value={form.lat} onChange={(v: any)=>{set("lat")(v);}} placeholder="เช่น 13.756331" type="number"/>
+                  <InputField label="ลองจิจูด (Longitude)" value={form.lng} onChange={(v: any)=>{set("lng")(v);}} placeholder="เช่น 100.501765" type="number"/>
                 </div>
 
-                <MapPicker lat={form.lat} lng={form.lng} onChange={(la,lo)=>{ set("lat")(la); set("lng")(lo); }}/>
+                <MapPicker lat={form.lat} lng={form.lng} onChange={(la: any,lo: any)=>{ set("lat")(la); set("lng")(lo); }}/>
 
                 {form.lat && form.lng && (
                   <div style={{marginTop:10,padding:"8px 14px",borderRadius:8,background:"#f0fdf4",border:"1px solid #86efac",fontSize:13,color:"#166534",fontFamily:"Sarabun,sans-serif",display:"flex",gap:6,alignItems:"center"}}>
                     📌 พิกัด: {parseFloat(form.lat).toFixed(6)}, {parseFloat(form.lng).toFixed(6)}
-                    <a href={`https://www.google.com/maps?q=${form.lat},${form.lng}`} target="_blank" rel="noreferrer"
+                    <a href={`http://www.google.com/maps?q=${form.lat},${form.lng}`} target="_blank" rel="noreferrer"
                       style={{marginLeft:"auto",color:"#15803d",fontSize:12,textDecoration:"none",background:"#dcfce7",padding:"3px 10px",borderRadius:6}}>
                       เปิด Google Maps ↗
                     </a>
@@ -322,7 +319,7 @@ export default function App() {
               {/* Validation errors */}
               {Object.keys(errors).length > 0 && (
                 <div style={{padding:"12px 18px",borderRadius:10,background:"#fff1f2",border:"1px solid #fca5a5",marginBottom:20,fontSize:13,color:"#991b1b",fontFamily:"Sarabun,sans-serif"}}>
-                  ⚠️ กรุณากรอกข้อมูลที่จำเป็น: {["propertyType","transaction","priceValue","areaValue","year","province"].filter(k=>errors[k]).map(k=>({propertyType:"ประเภท",transaction:"รูปแบบ",priceValue:"ราคา",areaValue:"พื้นที่",year:"ปี",province:"จังหวัด"}[k])).join(", ")}
+                  ⚠️ กรุณากรอกข้อมูลที่จำเป็น: {["propertyType","transaction","priceValue","areaValue","year","province"].filter(k=>errors[k]).map(k=>({propertyType:"ประเภท",transaction:"รูปแบบ",priceValue:"ราคา",areaValue:"พื้นที่",year:"ปี",province:"จังหวัด"}[k as keyof any] as string)).join(", ")}
                 </div>
               )}
 
@@ -398,7 +395,7 @@ export default function App() {
                     {(rec.lat && rec.lng) && (
                       <div style={{marginBottom:10,padding:"8px 14px",borderRadius:8,background:"#f0fdf4",border:"1px solid #86efac",fontSize:12,color:"#166534",fontFamily:"Sarabun,sans-serif",display:"flex",gap:8,alignItems:"center"}}>
                         📌 {parseFloat(rec.lat).toFixed(6)}, {parseFloat(rec.lng).toFixed(6)}
-                        <a href={`https://www.google.com/maps?q=${rec.lat},${rec.lng}`} target="_blank" rel="noreferrer"
+                        <a href={`http://www.google.com/maps?q=${rec.lat},${rec.lng}`} target="_blank" rel="noreferrer"
                           style={{marginLeft:"auto",color:"#15803d",fontSize:11,textDecoration:"none",background:"#dcfce7",padding:"2px 8px",borderRadius:5}}>Google Maps ↗</a>
                       </div>
                     )}
